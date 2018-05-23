@@ -1,6 +1,3 @@
-import math
-
-
 def rep(x, y):  # too lazy to go through and change R code + regex was being wonky -> 'rep\("([A-Z])", {1}([0-9])\)'
     return list(x * y)
 
@@ -76,14 +73,15 @@ def make_frequency_table(generator):
     :param simplify: if true, when a sequence isn't a multiple of 3, it will condense codons into a protein
     :return: a dictionary containing the table of frequencies
     """
+    gen = generator  # default for straight DNA sequence
     freq_table = dict()
-    unit = next(generator)
+    unit = next(gen)
     counter = 0
     while unit is not "":  # form table from units
         if unit not in freq_table:
             freq_table[unit] = 0
         freq_table[unit] += 1
-        unit = next(generator)
+        unit = next(gen)
         counter += 1
     s_t = sorted([(k, v) for k, v in freq_table.items()], key=lambda x: x[1], reverse=True)  # sort by freq, descending
     return s_t, counter
@@ -92,59 +90,62 @@ def make_frequency_table(generator):
 ###########################################################################################
 ## DNA SEQUENCE
 # frequencies = [make_frequency_table(unit_generator(input_file="nucs.fasta", size=siz, simplify=True)) for siz in sizes]
-# reduce(lambda x, y: x + y, [f[1] for f in freq])
 
-## PROTEIN SEQUENCE
-# input_file = "/Users/matthew/protein.fa"
+# PROTEIN SEQUENCE
+input_file = "/Users/matthew/protein.fa"
+with open(input_file) as f:
+    body = f.readlines()
+    amino_acids = []
+    for line in body:
+        if ">" in line:
+            continue
+        amino_acids.append(line.strip())
+    amino_acids = "".join(amino_acids)
+
+size = 4  # 4 amino acids
+freq_table = dict()
+counter = 0
+for s in range(size):
+    for i in range(0, len(amino_acids), size):  # form table from units
+        unit = amino_acids[i:i + size]
+        if unit not in freq_table:
+            freq_table[unit] = 0
+        freq_table[unit] += 1
+        counter += 1
+frequencies = [sorted([(k, v) for k, v in freq_table.items()], key=lambda x: x[1], reverse=True)]  # sort by descending
+with open("zipf.freq.txt", "wb") as o: # write frequencies to a file
+    for y in frequencies[0]:
+        o.write("{}\n".format(y[1]))
+
+### RNA SEQUENCE
+# input_file = "rna.fa"
 # with open(input_file) as f:
 #     body = f.readlines()
-#     proteins = []
-#     for line in body:
-#         if ">" in line:
-#             continue
-#         proteins.append(line.strip())
-#     proteins = "".join(proteins)
-#
+# dna = []
+# for line in body:
+#     if ">" in line:
+#         continue
+#     dna.append(line.strip())
+# amino_acids = ribosome(translate("".join(dna)), simplify=True)
+# print amino_acids[:20]
 # size = 4
 # freq_table = dict()
 # counter = 0
 # for s in range(size):
-#     for i in range(0, len(proteins), size):  # form table from units
-#         unit = proteins[i:i + size]
+#     for i in range(0, len(amino_acids), size):  # form table from units
+#         unit = amino_acids[i:i + size]
 #         if unit not in freq_table:
 #             freq_table[unit] = 0
 #         freq_table[unit] += 1
 #         counter += 1
 # frequencies = [sorted([(k, v) for k, v in freq_table.items()], key=lambda x: x[1], reverse=True)]  # sort by descending
 
-### RNA SEQUENCE # TODO: fix
-input_file = "rna.fa"
-with open(input_file) as f:
-    body = f.readlines()
-dna = []
-for line in body:
-    if ">" in line:
-        continue
-    dna.append(line.strip())
-proteins = ribosome(translate("".join(dna)), simplify=True)
-print proteins[:20]
-size = 4
-freq_table = dict()
-counter = 0
-for s in range(size):
-    for i in range(0, len(proteins), size):  # form table from units
-        unit = proteins[i:i + size]
-        if unit not in freq_table:
-            freq_table[unit] = 0
-        freq_table[unit] += 1
-        counter += 1
-frequencies = [sorted([(k, v) for k, v in freq_table.items()], key=lambda x: x[1], reverse=True)]  # sort by descending
-
-for table in frequencies:
+for table in frequencies:  # write zipf enumeration to a file
     rel_freq = list(map(lambda t: float(t[1]) / float(counter), table))
     top_entry = rel_freq[0]
     zipf = list(map(lambda f: (f / top_entry) ** -1, rel_freq))
 
+    # pritn first 100 to 200 entries for each step in teh calculation
     print("table:", table[:100])
     print("relative frequency:", rel_freq[:100])
     print("zipf:", zipf[:200])
@@ -152,4 +153,30 @@ for table in frequencies:
         for y in zipf:
             o.write("{}\n".format(y))
 
-    # R code for random sampling: writeLines(paste(sample(nuc, 120000, replace = T), collapse=""), "/Users/matthew/PycharmProjects/BigBoiCode/nucs.fasta")
+### R code
+## for random sampling:
+#     writeLines(paste(sample(nuc, 120000, replace = T), collapse=""), "/Users/matthew/PycharmProjects/BigBoiCode/nucs.fasta")
+## for plotting:
+#     library(tidyverse)
+#     par(mfrow=c(2,2))
+#     data <- read_csv("/Users/matthew/PycharmProjects/BigBoiCode/zipf", col_names = F)
+#     `Frequency Ranking` <-  (1:length(data[[1]]))
+#     `Zipf Enumeration` <- (data[[1]])
+#     plot(`Frequency Ranking`, `Zipf Enumeration`, type="l")
+#     title("Evaluating for Zipf Distribution")
+
+#     `log(Frequency Ranking)` <-  log(1:length(data[[1]]))
+#     `log(Zipf Enumeration)` <- log(data[[1]])
+#     plot(`log(Frequency Ranking)`, `log(Zipf Enumeration)`, type="l")
+#     title("Evaluating for Zipf Distribution (logarithmic)")
+
+#     data <- read_csv("/Users/matthew/PycharmProjects/BigBoiCode/zipf.freq.txt", col_names = F)
+#     `Rank` <-  (1:length(data[[1]]))
+#     `Frequency` <- (data[[1]])
+#     plot(`Rank`, `Frequency`, type="l")
+#     title("Evaluating Frequency vs Rank");data <- read_csv("/Users/matthew/PycharmProjects/BigBoiCode/zipf.freq.txt", col_names = F)
+
+#     `log(Rank)` <-  log(1:length(data[[1]]))
+#     `log(Frequency)` <- log(data[[1]])
+#     plot(`log(Rank)`, `log(Frequency)`, type="l")
+#     title("Evaluating Frequency vs Rank (logarithmic)")
